@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>APICompare.ai - The Skyscanner for AI APIs</title>
+  <meta name="description" content="Compare AI APIs for Chat, Speech-to-Text, Text-to-Speech, Image Generation, and Embeddings. Find the best pricing, latency, and free tiers.">
+  <meta name="keywords" content="AI API, API comparison, AI developer tools, AI pricing, AI latency">
+  <meta name="robots" content="index, follow">
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.22.5/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXX"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-XXXXXXX');
+  </script>
+</head>
+<body class="bg-gray-50 font-sans">
+  <div id="root" class="container mx-auto p-6"></div>
+
+  <script type="text/babel">
+    // Simulated external JSON (to be hosted in Airtable or backend)
+    const apiData = {
+      "Chat": [
+        {
+          name: "Grok",
+          provider: "xAI",
+          pricing: 0,
+          unit: "See https://x.ai/api for details",
+          freeTier: "Yes (limited quota)",
+          latency: "300ms",
+          link: "https://x.ai/api?utm_source=apicompare&utm_medium=referral"
+        },
+        {
+          name: "GPT-5 mini",
+          provider: "OpenAI",
+          pricing: 0.25,
+          unit: "per 1M input tokens",
+          freeTier: "No",
+          latency: "400ms",
+          link: "https://openai.com/api/pricing?utm_source=apicompare&utm_medium=referral"
+        },
+        {
+          name: "Claude 3.5 Sonnet",
+          provider: "Anthropic",
+          pricing: 3.0,
+          unit: "per 1M input tokens",
+          freeTier: "No",
+          latency: "350ms",
+          link: "https://www.anthropic.com/api?utm_source=apicompare&utm_medium=referral"
+        }
+      ],
+      "Speech-to-Text": [
+        {
+          name: "Whisper",
+          provider: "OpenAI",
+          pricing: 0.006,
+          unit: "per minute",
+          freeTier: "No",
+          latency: "500ms",
+          link: "https://openai.com/api/pricing?utm_source=apicompare&utm_medium=referral"
+        },
+        {
+          name: "Nova-3",
+          provider: "Deepgram",
+          pricing: 0.0043,
+          unit: "per minute",
+          freeTier: "Yes ($200 credit)",
+          latency: "<300ms",
+          link: "https://deepgram.com/pricing?utm_source=apicompare&utm_medium=referral"
+        }
+      ],
+      "Text-to-Speech": [
+        {
+          name: "Polly Neural",
+          provider: "Amazon",
+          pricing: 16.0,
+          unit: "per 1M characters",
+          freeTier: "Yes (1M chars/month first year)",
+          latency: "300ms",
+          link: "https://aws.amazon.com/polly/pricing/?utm_source=apicompare&utm_medium=referral"
+        },
+        {
+          name: "Text-to-Speech",
+          provider: "ElevenLabs",
+          pricing: 5.0,
+          unit: "per 30 min (Starter)",
+          freeTier: "Yes (10 min/month)",
+          latency: "Low",
+          link: "https://elevenlabs.io/pricing?utm_source=apicompare&utm_medium=referral"
+        }
+      ],
+      "Image Generation": [
+        {
+          name: "DALL-E 3",
+          provider: "OpenAI",
+          pricing: 0.04,
+          unit: "per image",
+          freeTier: "No",
+          latency: "5s",
+          link: "https://openai.com/api/pricing?utm_source=apicompare&utm_medium=referral"
+        },
+        {
+          name: "Stable Diffusion",
+          provider: "Stability AI",
+          pricing: 0.02,
+          unit: "per image",
+          freeTier: "Yes (trial)",
+          latency: "3s",
+          link: "https://platform.stability.ai/pricing?utm_source=apicompare&utm_medium=referral"
+        }
+      ],
+      "Embeddings": [
+        {
+          name: "text-embedding-3-large",
+          provider: "OpenAI",
+          pricing: 0.00013,
+          unit: "per 1K tokens",
+          freeTier: "No",
+          latency: "200ms",
+          link: "https://openai.com/api/pricing?utm_source=apicompare&utm_medium=referral"
+        },
+        {
+          name: "Embed",
+          provider: "Cohere",
+          pricing: 0.0001,
+          unit: "per 1K tokens",
+          freeTier: "Yes (trial)",
+          latency: "200ms",
+          link: "https://cohere.com/pricing?utm_source=apicompare&utm_medium=referral"
+        }
+      ]
+    };
+
+    function Calculator({ selectedCategory, apis }) {
+      const [input, setInput] = React.useState("");
+      const [error, setError] = React.useState("");
+
+      const getPlaceholder = () => {
+        switch (selectedCategory) {
+          case "Chat": return "Enter token count";
+          case "Speech-to-Text": return "Enter audio minutes";
+          case "Text-to-Speech": return "Enter character count";
+          case "Image Generation": return "Enter number of images";
+          case "Embeddings": return "Enter token count";
+          default: return "Enter usage";
+        }
+      };
+
+      const calculateCost = (api, value) => {
+        if (!value || value <= 0) return 0;
+        switch (selectedCategory) {
+          case "Chat":
+          case "Embeddings":
+            return (parseFloat(value) / 1_000_000) * api.pricing;
+          case "Speech-to-Text":
+            return parseFloat(value) * api.pricing;
+          case "Text-to-Speech":
+            return (parseFloat(value) / 1_000_000) * api.pricing;
+          case "Image Generation":
+            return parseFloat(value) * api.pricing;
+          default:
+            return 0;
+        }
+      };
+
+      const handleInputChange = (e) => {
+        const value = e.target.value;
+        if (value < 0) {
+          setError("Input must be a positive number");
+          setInput("");
+        } else {
+          setError("");
+          setInput(value);
+        }
+      };
+
+      const calcResults = input && !error
+        ? apis.map(api => ({
+            ...api,
+            cost: calculateCost(api, input).toFixed(4)
+          }))
+        : [];
+
+      return (
+        <div className="bg-blue-50 p-4 rounded-lg my-6">
+          <h3 className="font-semibold mb-2">Cost Calculator</h3>
+          <div className="flex flex-col md:flex-row gap-2 mb-4">
+            <input
+              type="number"
+              placeholder={getPlaceholder()}
+              value={input}
+              onChange={handleInputChange}
+              className="border rounded p-2 w-full md:w-1/3"
+              aria-label={`Enter ${getPlaceholder().toLowerCase()}`}
+            />
+            <button
+              onClick={() => setInput("")}
+              className="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400"
+            >
+              Reset
+            </button>
+          </div>
+          {error && <p className="text-red-500 mb-2">{error}</p>}
+          {calcResults.length > 0 && (
+            <table className="w-full text-left border-collapse mt-2">
+              <thead>
+                <tr className="bg-gray-200">
+                  <th className="p-2">API</th>
+                  <th className="p-2">Provider</th>
+                  <th className="p-2">Est. Cost</th>
+                </tr>
+              </thead>
+              <tbody>
+                {calcResults.map((api, idx) => (
+                  <tr key={idx} className="border-b">
+                    <td className="p-2">{api.name}</td>
+                    <td className="p-2">{api.provider}</td>
+                    <td className="p-2">${api.cost}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {!input && !error && <p className="text-gray-500">Enter a value to see cost estimates.</p>}
+        </div>
+      );
+    }
+
+    function AIAPIComparator() {
+      const [selectedCategory, setSelectedCategory] = React.useState("Chat");
+      const [searchTerm, setSearchTerm] = React.useState("");
+      const [sortField, setSortField] = React.useState("");
+      const [sortOrder, setSortOrder] = React.useState("asc");
+
+      const categories = Object.keys(apiData);
+      let filteredApis = apiData[selectedCategory] || [];
+
+      // Search filter
+      if (searchTerm) {
+        filteredApis = filteredApis.filter(api =>
+          api.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          api.provider.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+      }
+
+      // Sorting
+      if (sortField) {
+        filteredApis = [...filteredApis].sort((a, b) => {
+          const aValue = a[sortField] || "";
+          const bValue = b[sortField] || "";
+          if (sortField === "pricing") {
+            return sortOrder === "asc"
+              ? aValue - bValue
+              : bValue - aValue;
+          }
+          return sortOrder === "asc"
+            ? aValue.localeCompare(bValue)
+            : bValue.localeCompare(aValue);
+        });
+      }
+
+      const handleSort = (field) => {
+        if (sortField === field) {
+          setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+        } else {
+          setSortField(field);
+          setSortOrder("asc");
+        }
+      };
+
+      return (
+        <div className="bg-white shadow-lg rounded-xl p-6">
+          <header className="text-center mb-6">
+            <h1 className="text-4xl font-bold text-blue-600">APICompare.ai</h1>
+            <p className="text-gray-600">
+              The <span className="font-semibold">Skyscanner for AI APIs</span>. 
+              Discover, compare & estimate costs across providers.
+            </p>
+          </header>
+
+          <div className="flex flex-col md:flex-row gap-4 mb-6">
+            <div>
+              <label className="mr-2 font-semibold" htmlFor="category-select">Select Category:</label>
+              <select
+                id="category-select"
+                className="border rounded p-2 w-full md:w-auto"
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                aria-label="Select API category"
+              >
+                {categories.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mr-2 font-semibold" htmlFor="search-input">Search:</label>
+              <input
+                id="search-input"
+                type="text"
+                placeholder="Search by API or provider"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="border rounded p-2 w-full md:w-auto"
+                aria-label="Search APIs"
+              />
+            </div>
+          </div>
+
+          <Calculator selectedCategory={selectedCategory} apis={filteredApis} />
+
+          {filteredApis.length > 0 ? (
+            <>
+              <div className="hidden md:block">
+                <table className="w-full text-left border-collapse table-auto" role="grid">
+                  <thead>
+                    <tr className="bg-gray-200">
+                      <th className="p-3 cursor-pointer" onClick={() => handleSort("name")} aria-sort={sortField === "name" ? sortOrder : "none"}>API Name {sortField === "name" && (sortOrder === "asc" ? "↑" : "↓")}</th>
+                      <th className="p-3 cursor-pointer" onClick={() => handleSort("provider")} aria-sort={sortField === "provider" ? sortOrder : "none"}>Provider {sortField === "provider" && (sortOrder === "asc" ? "↑" : "↓")}</th>
+                      <th className="p-3 cursor-pointer" onClick={() => handleSort("pricing")} aria-sort={sortField === "pricing" ? sortOrder : "none"}>Pricing {sortField === "pricing" && (sortOrder === "asc" ? "↑" : "↓")}</th>
+                      <th className="p-3">Free Tier</th>
+                      <th className="p-3">Latency</th>
+                      <th className="p-3">Link</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredApis.map((api, index) => (
+                      <tr key={index} className="border-b hover:bg-gray-50">
+                        <td className="p-3">{api.name}</td>
+                        <td className="p-3">{api.provider}</td>
+                        <td className="p-3">{api.pricing === 0 ? api.unit : `$${api.pricing} ${api.unit}`}</td>
+                        <td className="p-3">{api.freeTier}</td>
+                        <td className="p-3">{api.latency}</td>
+                        <td className="p-3">
+                          <a
+                            href={api.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-500 hover:underline"
+                            aria-label={`Visit ${api.provider} for ${api.name}`}
+                          >
+                            Go to Provider
+                          </a>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="md:hidden space-y-4">
+                {filteredApis.map((api, index) => (
+                  <div key={index} className="bg-gray-100 p-4 rounded-lg">
+                    <h3 className="font-semibold">{api.name}</h3>
+                    <p><strong>Provider:</strong> {api.provider}</p>
+                    <p><strong>Pricing:</strong> {api.pricing === 0 ? api.unit : `$${api.pricing} ${api.unit}`}</p>
+                    <p><strong>Free Tier:</strong> {api.freeTier}</p>
+                    <p><strong>Latency:</strong> {api.latency}</p>
+                    <a
+                      href={api.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-500 hover:underline"
+                      aria-label={`Visit ${api.provider} for ${api.name}`}
+                    >
+                      Go to Provider
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p className="text-gray-500 text-center">No APIs found for this category or search term.</p>
+          )}
+
+          <footer className="text-center mt-6 text-gray-500 text-sm">
+            <p>Data updated as of August 2025. For latest info, visit providers. This site may earn commissions from referrals.</p>
+          </footer>
+        </div>
+      );
+    }
+
+    ReactDOM.render(<AIAPIComparator />, document.getElementById('root'));
+  </script>
+</body>
+</html>
