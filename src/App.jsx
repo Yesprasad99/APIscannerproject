@@ -1,65 +1,94 @@
+// src/App.jsx
 import { useEffect, useState } from "react";
+import { fetchAPIs } from "./airtable";
+import "./styles.css";
 
 export default function App() {
   const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState("");
+  const [isLoading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
+    let alive = true;
     (async () => {
       try {
-        const r = await fetch("/api/airtable?max=50");
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        const data = await r.json();
-        setRows(data.rows || []);
+        setLoading(true);
+        setError("");
+        const data = await fetchAPIs();  // <-- pulls from Airtable
+        if (alive) setRows(data);
       } catch (e) {
-        setErr(String(e));
+        console.error("Airtable fetch failed:", e);
+        if (alive) setError(e.message || "Failed to load Airtable data");
       } finally {
-        setLoading(false);
+        if (alive) setLoading(false);
       }
     })();
+    return () => { alive = false; };
   }, []);
 
   return (
-    <main style={{ maxWidth: 1000, margin: "40px auto", padding: 16, fontFamily: "system-ui" }}>
-      <h1 style={{ marginBottom: 8 }}>API Scanner — Live from Airtable</h1>
-      <p style={{ color: "#666", marginBottom: 20 }}>
-        Showing {rows.length} APIs from your Airtable base.
-      </p>
+    <div className="container">
+      <h1 className="page-title">AI APIs</h1>
+      <p className="page-sub">Compare pricing, latency, and free tiers across providers.</p>
 
-      {loading && <p>Loading…</p>}
-      {err && <p style={{ color: "crimson" }}>Error: {err}</p>}
+      <div className="card">
+        <div className="controls">
+          <select className="select"><option>All Providers</option></select>
+          <select className="select"><option>All Categories</option></select>
+          <select className="select"><option>Free Tier (Any)</option></select>
+          <input className="input" placeholder="Search…" />
+        </div>
 
-      {!loading && !err && (
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr>
-              {["API Name", "Provider", "Category", "Pricing", "Unit", "Free Tier", "Latency", "Link"].map(h => (
-                <th key={h} style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: 8 }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(r => {
-              const f = r.fields || {};
-              return (
-                <tr key={r.id}>
-                  <td style={{ padding: 8, borderBottom: "1px solid #eee" }}>{f["API Name"]}</td>
-                  <td style={{ padding: 8, borderBottom: "1px solid #eee" }}>{f["Provider"]}</td>
-                  <td style={{ padding: 8, borderBottom: "1px solid #eee" }}>{f["Category"]}</td>
-                  <td style={{ padding: 8, borderBottom: "1px solid #eee" }}>{f["Pricing"]}</td>
-                  <td style={{ padding: 8, borderBottom: "1px solid #eee" }}>{f["Unit"]}</td>
-                  <td style={{ padding: 8, borderBottom: "1px solid #eee" }}>{f["Free Tier"]}</td>
-                  <td style={{ padding: 8, borderBottom: "1px solid #eee" }}>{f["Latency"]}</td>
-                  <td style={{ padding: 8, borderBottom: "1px solid #eee" }}>
-                    {f["Link"] ? <a href={f["Link"]} target="_blank" rel="noreferrer">Docs</a> : ""}
-                  </td>
+        {/* Show fetch error ABOVE the table */}
+        {error && <div className="alert error">Error: {error}</div>}
+
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>API Name</th>
+                <th>Provider</th>
+                <th>Category</th>
+                <th>Pricing</th>
+                <th>Unit</th>
+                <th>Free Tier</th>
+                <th>Latency</th>
+                <th>Link</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading && [...Array(6)].map((_, i) => (
+                <tr key={i}>
+                  {Array.from({ length: 9 }).map((__, j) => (
+                    <td key={j}><div className="skel" /></td>
+                  ))}
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      )}
-    </main>
+              ))}
+
+              {!isLoading && !error && rows.map((r) => (
+                <tr key={r.id}>
+                  <td><strong>{r.apiName || "—"}</strong></td>
+                  <td>{r.provider || "—"}</td>
+                  <td><span className="chip">{r.category || "—"}</span></td>
+                  <td className="right">{r.price == null ? "—" : `$${r.price.toFixed(2)}`}</td>
+                  <td>{r.unit || "—"}</td>
+                  <td>{r.freeTier || "None"}</td>
+                  <td>{r.latency == null ? "—" : `≈${Math.round(r.latency)} ms`}</td>
+                  <td>{r.docsUrl
+                    ? <a className="link" href={r.docsUrl} target="_blank" rel="noopener">Docs</a>
+                    : <span className="muted">—</span>}</td>
+                  <td className="muted">{r.notes || "—"}</td>
+                </tr>
+              ))}
+
+              {!isLoading && !error && rows.length === 0 && (
+                <tr><td colSpan={9}><div className="empty">No rows found in Airtable.</div></td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   );
 }

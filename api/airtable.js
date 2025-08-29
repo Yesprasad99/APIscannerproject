@@ -1,54 +1,29 @@
 // api/airtable.js
-
-function setCORS(res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-}
-
 export default async function handler(req, res) {
-  setCORS(res);
+  const KEY   = process.env.AIRTABLE_API_KEY;   // ✅ matches your Vercel var
+  const BASE  = process.env.AIRTABLE_BASE_ID;
+  const TABLE = process.env.AIRTABLE_TABLE_ID;
+  const VIEW  = process.env.AIRTABLE_VIEW;
 
-  // Handle preflight
-  if (req.method === "OPTIONS") {
-    return res.status(204).end();
+  if (!KEY || !BASE || !TABLE) {
+    return res.status(500).json({ error: "Missing Airtable env vars on server" });
   }
 
-  try {
-    const baseId = process.env.AIRTABLE_BASE_ID;
-    const tableName = process.env.AIRTABLE_TABLE_NAME; // can be table ID (tbl...)
-    const token = process.env.AIRTABLE_API_KEY;
+  const url = new URL(`https://api.airtable.com/v0/${BASE}/${TABLE}`);
+  if (VIEW) url.searchParams.set("view", VIEW);
 
-    if (!baseId || !tableName || !token) {
-      return res.status(500).json({
-        error: "Missing Airtable env vars",
-        have: {
-          AIRTABLE_BASE_ID: !!baseId,
-          AIRTABLE_TABLE_NAME: !!tableName,
-          AIRTABLE_API_KEY: !!token,
-        },
-      });
-    }
+  const r = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${KEY}` }
+  });
 
-    const max = Math.min(parseInt(req.query.max || "50", 10), 100);
-    const url = new URL(`https://api.airtable.com/v0/${baseId}/${encodeURIComponent(tableName)}`);
-    url.searchParams.set("pageSize", String(max));
+  const text = await r.text();
+  if (!r.ok) return res.status(r.status).send(text);
 
-    const r = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+  // Cache for 5 minutes
+  res.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate=600");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+  if (req.method === "OPTIONS") return res.status(204).end();
 
-    if (!r.ok) {
-      const text = await r.text();
-      return res.status(r.status).json({ error: "Airtable error", detail: text });
-    }
-
-    const data = await r.json();
-    const rows = (data.records || []).map((rec) => ({ id: rec.id, fields: rec.fields }));
-
-    res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=300");
-    return res.status(200).json({ count: rows.length, rows });
-  } catch (e) {
-    return res.status(500).json({ error: "Server error", message: String(e) });
-  }
+  return res.status(200).send(text);
 }
