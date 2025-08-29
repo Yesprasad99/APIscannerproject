@@ -1,25 +1,33 @@
-// src/airtable.js
-export async function fetchAPIs() {
-  const res = await fetch("/api/airtable");
-  if (!res.ok) throw new Error(`Proxy error ${res.status}: ${await res.text()}`);
-  const { records } = await res.json();
+// Tiny wrapper around your backend API
+type ListParams = { q?: string; limit?: number; offset?: string | null };
+type ListResponse<T> = { items: T[]; offset: string | null; total?: number };
 
-  const seen = new Set();
-  return records
-    .map(r => {
-      const f = r.fields || {};
-      return {
-        id: r.id,
-        apiName: f["API Name"],
-        provider: f["Provider"],
-        category: f["Category"],
-        price: parseFloat(String(f["Pricing"] || "").replace(/[^0-9.]/g, "")) || 0,
-        unit: f["Unit"],
-        freeTier: f["Free Tier"],
-        latency: parseInt(String(f["Latency"] || "").replace(/[^0-9]/g, "")) || null,
-        docsUrl: f["Link"],
-        notes: f["Notes"],
-      };
-    })
-    .filter(r => !seen.has(r.apiName) && seen.add(r.apiName));
+async function http<T>(url: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, { headers: { "Content-Type": "application/json" }, ...init });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(text || `Request failed: ${res.status}`);
+  }
+  return res.json() as Promise<T>;
 }
+
+export async function listApis(params: ListParams) {
+  const q = params.q ? encodeURIComponent(params.q) : "";
+  const limit = params.limit ?? 20;
+  const off = params.offset ? `&offset=${encodeURIComponent(params.offset)}` : "";
+  const qs = `?limit=${limit}${q ? `&q=${q}` : ""}${off}`;
+  return http<ListResponse<ApiItem>>(`/api/list${qs}`);
+}
+
+export async function getApi(id: string) {
+  return http<ApiItem>(`/api/get/${encodeURIComponent(id)}`);
+}
+
+// Example type — match to your backend shape
+export type ApiItem = {
+  id: string;
+  name: string;
+  category?: string;
+  description?: string;
+  website?: string;
+};
