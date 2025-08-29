@@ -1,12 +1,13 @@
 // src/components/SmartTable.jsx
 import React, { useMemo, useState } from "react";
+import ErrorBox from "./ErrorBox";
 
 /**
  * Reusable DataTable with:
  * - Global search
  * - Click-to-sort (ASC/DESC/NONE)
  * - Optional custom cell renderers
- * - Lightweight Tailwind styling
+ * - Lightweight styling
  */
 export default function DataTable({
   data = [],
@@ -14,6 +15,7 @@ export default function DataTable({
   initialSort = { key: "", dir: null }, // dir: "asc" | "desc" | null
   searchPlaceholder = "Search…",
   className = "",
+  error = null, // 👈 accept error from parent
 }) {
   const [q, setQ] = useState("");
   const [sortKey, setSortKey] = useState(initialSort.key || "");
@@ -51,7 +53,6 @@ export default function DataTable({
       const av = a[sortKey];
       const bv = b[sortKey];
 
-      // numeric first
       const an = Number(av);
       const bn = Number(bv);
       const aIsNum = !Number.isNaN(an);
@@ -59,7 +60,12 @@ export default function DataTable({
       let cmp = 0;
 
       if (aIsNum && bIsNum) cmp = an - bn;
-      else cmp = String(av ?? "").localeCompare(String(bv ?? ""), undefined, { sensitivity: "base", numeric: true });
+      else
+        cmp = String(av ?? "").localeCompare(
+          String(bv ?? ""),
+          undefined,
+          { sensitivity: "base", numeric: true }
+        );
 
       return sortDir === "asc" ? cmp : -cmp;
     });
@@ -68,7 +74,7 @@ export default function DataTable({
 
   return (
     <div className={`rounded-xl border shadow-sm bg-white ${className}`}>
-      {/* toolbar */}
+      {/* Toolbar */}
       <div className="p-3 border-b flex items-center gap-3">
         <input
           value={q}
@@ -78,13 +84,19 @@ export default function DataTable({
         />
         {sortKey && (
           <div className="text-sm text-gray-500">
-            Sorted by <b>{columns.find(c => c.key === sortKey)?.header}</b>{" "}
-            ({sortDir})
+            Sorted by <b>{columns.find((c) => c.key === sortKey)?.header}</b> ({sortDir})
           </div>
         )}
       </div>
 
-      {/* table */}
+      {/* 🔴 Error (clean box, above table) */}
+      {error && (
+        <div className="p-3">
+          <ErrorBox message={error.message || String(error)} />
+        </div>
+      )}
+
+      {/* Table */}
       <div className="overflow-x-auto">
         <table className="min-w-full border-collapse">
           <thead className="bg-gray-50 sticky top-0">
@@ -96,7 +108,9 @@ export default function DataTable({
                   <th
                     key={c.key}
                     onClick={sortable ? () => cycleSort(c.key) : undefined}
-                    className={`px-4 py-3 border-b font-semibold whitespace-nowrap ${sortable ? "cursor-pointer select-none" : ""}`}
+                    className={`px-4 py-3 border-b font-semibold whitespace-nowrap ${
+                      sortable ? "cursor-pointer select-none" : ""
+                    }`}
                   >
                     <span className="inline-flex items-center gap-1">
                       {c.header}
